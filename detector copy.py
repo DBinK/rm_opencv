@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 
+def show_img(img):
+    if img is not None:
+        cv2.namedWindow("tmp", cv2.WINDOW_NORMAL)
+        cv2.imshow("tmp", img)
 
 class Light:
     def __init__(self, rect):
@@ -36,11 +40,16 @@ class Detector:
         binary_img = self.preprocess_image(input_img)
         self.lights_ = self.find_lights(input_img, binary_img)
         self.armors_ = self.match_lights(self.lights_)
-        # 进一步处理可以在这里添加
+       
+        if self.armors_:
+            # 这里可以添加数字提取和分类的逻辑
+            pass
+        
         return self.armors_
 
     def preprocess_image(self, rgb_img):
         gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2GRAY)
+
         _, binary_img = cv2.threshold(
             gray_img, self.binary_thres, 255, cv2.THRESH_BINARY
         )
@@ -164,9 +173,10 @@ if __name__ == "__main__":
 
 
     img_path = "2.jpg"
-    img_path = "combine.png"
+    # img_path = "combine.png"
 
     img = cv2.imread(img_path)
+    show_img(img)
     detector = Detector(
         l={"min_ratio": 0.5, "max_ratio": 2.5, "max_angle": 30},
         a={
