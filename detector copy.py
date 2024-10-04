@@ -5,12 +5,13 @@ import numpy as np
 class Light:
     def __init__(self, rect):
         self.rect = rect
-        self.center = tuple(map(int, rect.center))
-        self.top = (self.center[0], int(self.center[1] - rect.size[1] / 2))
-        self.bottom = (self.center[0], int(self.center[1] + rect.size[1] / 2))
-        self.length = max(rect.size)
-        self.width = min(rect.size)
-        self.tilt_angle = rect.angle
+        # 使用 rect[0] 获取中心点坐标
+        self.center = tuple(map(int, rect[0]))
+        self.top = (self.center[0], int(self.center[1] - rect[1][1] / 2))
+        self.bottom = (self.center[0], int(self.center[1] + rect[1][1] / 2))
+        self.length = max(rect[1])
+        self.width = min(rect[1])
+        self.tilt_angle = rect[2]
         self.color = None
 
 
@@ -57,12 +58,8 @@ class Detector:
             light = Light(r_rect)
             if self.is_light(light):
                 roi = rgb_img[
-                    int(light.rect[1] - light.rect[3] / 2) : int(
-                        light.rect[1] + light.rect[3] / 2
-                    ),
-                    int(light.rect[0] - light.rect[2] / 2) : int(
-                        light.rect[0] + light.rect[2] / 2
-                    ),
+                    int(light.center[1] - light.rect[1][1] / 2): int(light.center[1] + light.rect[1][1] / 2),
+                    int(light.center[0] - light.rect[1][0] / 2): int(light.center[0] + light.rect[1][0] / 2),
                 ]
                 sum_r = np.sum(roi[:, :, 2])
                 sum_b = np.sum(roi[:, :, 0])
@@ -79,7 +76,7 @@ class Detector:
     def match_lights(self, lights):
         armors = []
         for i, light_1 in enumerate(lights):
-            for light_2 in lights[i + 1 :]:
+            for light_2 in lights[i + 1:]:
                 if (
                     light_1.color != self.detect_color
                     or light_2.color != self.detect_color
@@ -164,7 +161,11 @@ class Detector:
 
 
 if __name__ == "__main__":
+
+
     img_path = "2.jpg"
+    img_path = "combine.png"
+
     img = cv2.imread(img_path)
     detector = Detector(
         l={"min_ratio": 0.5, "max_ratio": 2.5, "max_angle": 30},
@@ -180,6 +181,7 @@ if __name__ == "__main__":
     for armor in result:
         print(armor.type)
 
+    cv2.namedWindow("result", cv2.WINDOW_NORMAL)
     cv2.imshow("result", img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
