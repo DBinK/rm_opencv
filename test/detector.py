@@ -75,7 +75,7 @@ class Detector:
 
     def preprocess_image(self, rgb_img):
         """预处理图像"""
-        darker_img = cv2.convertScaleAbs(rgb_img, alpha=0.5)
+        dark_img = cv2.convertScaleAbs(rgb_img, alpha=0.5)
         gray_img = cv2.cvtColor(darker_img, cv2.COLOR_BGR2GRAY)  # 转换为灰度图像
         _, binary_img = cv2.threshold(gray_img, self.binary_thres, 255, cv2.THRESH_BINARY)  # 二值化
         return binary_img

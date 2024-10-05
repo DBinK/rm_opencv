@@ -6,6 +6,12 @@ from enum import Enum
 RED = 0
 BLUE = 1
 
+def show_img(img):
+    if img is not None:
+        cv2.namedWindow("tmp", cv2.WINDOW_NORMAL)
+        cv2.imshow("tmp", img)
+
+
 # 定义装甲类型
 class ArmorType(Enum):
     SMALL = 0
@@ -73,11 +79,17 @@ class Detector:
         return self.armors
 
     def preprocess_image(self, rgb_img):
-        gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2GRAY)
+        """预处理图像"""
+        dark_img = cv2.convertScaleAbs(rgb_img, alpha=0.5)
+        gray_img = cv2.cvtColor(dark_img, cv2.COLOR_RGB2GRAY)
         _, binary_img = cv2.threshold(gray_img, self.binary_thres, 255, cv2.THRESH_BINARY)
+
+        show_img(binary_img)
+
         return binary_img
 
     def find_lights(self, rgb_img, binary_img):
+        """查找灯条"""
         contours, _ = cv2.findContours(binary_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         lights = []
 
@@ -99,20 +111,22 @@ class Detector:
         return lights
 
     def is_light(self, light):
+        """判断是否为灯条"""
         ratio = light.width / light.length
         ratio_ok = self.light_params['min_ratio'] < ratio < self.light_params['max_ratio']
         angle_ok = light.tilt_angle < self.light_params['max_angle']
         return ratio_ok and angle_ok
 
     def match_lights(self, lights):
+        """匹配灯条"""
         armors = []
         for i, light1 in enumerate(lights):
             for light2 in lights[i + 1:]:
                 if light1.color != self.detect_color or light2.color != self.detect_color:
                     continue
 
-                if self.contain_light(light1, light2, lights):
-                    continue
+                # if self.contain_light(light1, light2, lights):
+                #     continue
 
                 armor_type = self.is_armor(light1, light2)
                 if armor_type != ArmorType.INVALID:
@@ -123,6 +137,7 @@ class Detector:
         return armors
 
     def contain_light(self, light1, light2, lights):
+        """判断两条灯条之间是否包含其他灯条"""
         points = np.array([light1.top, light1.bottom, light2.top, light2.bottom])
         bounding_rect = cv2.boundingRect(points)
 
@@ -143,6 +158,7 @@ class Detector:
 
 
     def is_armor(self, light1, light2):
+        """判断是否为装甲板"""
         # 计算两个灯的长度比
         light_length_ratio = min(light1.length, light2.length) / max(light1.length, light2.length)
         light_ratio_ok = light_length_ratio > self.armor_params['min_light_ratio']
@@ -168,15 +184,15 @@ class Detector:
     def draw_results(self, img):
         # 绘制灯
         for light in self.lights:
-            cv2.circle(img, tuple(map(int, light.top)), 1, (255, 255, 255), -1)
-            cv2.circle(img, tuple(map(int, light.bottom)), 1, (255, 255, 255), -1)
+            cv2.circle(img, tuple(map(int, light.top)), 2, (255, 255, 255), -1)
+            cv2.circle(img, tuple(map(int, light.bottom)), 2, (255, 255, 255), -1)
             line_color = (255, 255, 0) if light.color == RED else (255, 0, 255)
             cv2.line(img, tuple(map(int, light.top)), tuple(map(int, light.bottom)), line_color, 1)
 
         # 绘制装甲板
-        # for armor in self.armors:
-        #     cv2.line(img, tuple(map(int, armor.left_light.top)), tuple(map(int, armor.right_light.bottom)), (0, 255, 0), 2)
-        #     cv2.line(img, tuple(map(int, armor.left_light.bottom)), tuple(map(int, armor.right_light.top)), (0, 255, 0), 2)
+        for armor in self.armors:
+            cv2.line(img, tuple(map(int, armor.left_light.top)), tuple(map(int, armor.right_light.bottom)), (0, 255, 0), 2)
+            cv2.line(img, tuple(map(int, armor.left_light.bottom)), tuple(map(int, armor.right_light.top)), (0, 255, 0), 2)
 
             # 显示分类结果
             # cv2.putText(img, armor.classification_result, tuple(map(int, armor.left_light.top)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
@@ -184,19 +200,20 @@ class Detector:
     
 # 使用示例
 if __name__ == "__main__":
-    light_params = {'min_ratio': 0.1, 'max_ratio': 5, 'max_angle': 300}
+    light_params = {'min_ratio': 0.1, 'max_ratio': 1, 'max_angle': 30}
     armor_params = {
-        'min_light_ratio': 0.1,
-        'min_small_center_distance': 2,
-        'max_small_center_distance': 500,
-        'min_large_center_distance': 5,
-        'max_large_center_distance': 1000,
-        'max_angle': 300
+        'min_light_ratio': 0.001,
+        'min_small_center_distance': 1,
+        'max_small_center_distance': 5000,
+        'min_large_center_distance': 1,
+        'max_large_center_distance': 10000,
+        'max_angle': 30
     }
-    detector = Detector(bin_thres=128, color=RED, light_params=light_params, armor_params=armor_params)
+    detector = Detector(bin_thres=80, color=RED, light_params=light_params, armor_params=armor_params)
 
     # 读取图像并进行检测
     img = cv2.imread("img/2.jpg")
+    # img = cv2.imread("/home/dbink/rm_opencv/img/combine.png")
     armors = detector.detect(img)
 
     print(armors)
@@ -206,3 +223,5 @@ if __name__ == "__main__":
 
     cv2.namedWindow("result_img", cv2.WINDOW_NORMAL)
     cv2.imshow("result_img", result_img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
